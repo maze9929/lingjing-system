@@ -11,8 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 复制代码
 COPY . .
 
-# 确保数据目录存在
-RUN mkdir -p /app/data/ledgers /app/data/cases /app/data/rules
+# 确保数据目录和证书目录存在（云托管需要）
+RUN mkdir -p /app/data/ledgers /app/data/cases /app/data/rules /app/cert
 
 # 暴露端口（云托管默认 80）
 EXPOSE 80
