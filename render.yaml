@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: lingjing-decision
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 run:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.6
+      - key: SECRET_KEY
+        generateValue: true
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_API_BASE
+        value: https://api.deepseek.com/v1
+      - key: AI_MODEL_PRIMARY
+        value: deepseek-chat
+      - key: AI_MODEL_CHECK_1
+        value: deepseek-chat
+      - key: AI_MODEL_CHECK_2
+        value: deepseek-chat
+      - key: AI_MODEL_CHECK_3
+        value: deepseek-chat

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>灵境 · 理性决策辅助系统 V3.5.1</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', -apple-system, sans-serif; background: #0a0e17; color: #e0e6ed; min-height: 100vh; }
+        
+        .header { background: linear-gradient(135deg, #1a1f35 0%, #0d1321 100%); border-bottom: 1px solid #1e2a3a; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+        .header h1 { font-size: 20px; font-weight: 600; background: linear-gradient(90deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header .version { font-size: 12px; color: #4b5563; margin-left: 12px; }
+        .header .status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #10b981; }
+        .header .status::before { content: ''; width: 8px; height: 8px; background: #10b981; border-radius: 50%; animation: pulse 2s infinite; }
+        .header .status.ai-off { color: #f59e0b; }
+        .header .status.ai-off::before { background: #f59e0b; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        
+        .main-grid { display: grid; grid-template-columns: 380px 1fr; gap: 24px; }
+        
+        .panel { background: #111827; border: 1px solid #1e2a3a; border-radius: 12px; overflow: hidden; }
+        .panel-header { padding: 16px 20px; border-bottom: 1px solid #1e2a3a; display: flex; align-items: center; justify-content: space-between; }
+        .panel-header h2 { font-size: 15px; font-weight: 600; color: #e5e7eb; }
+        .panel-header .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #1e3a5f; color: #60a5fa; }
+        .panel-header .badge-ai { background: #064e3b; color: #34d399; }
+        .panel-header .badge-off { background: #78350f; color: #fbbf24; }
+        .panel-body { padding: 20px; }
+        
+        .red-lines { display: grid; gap: 8px; margin-bottom: 20px; }
+        .red-line { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: #0d1117; border: 1px solid #1e2a3a; border-radius: 8px; font-size: 12px; line-height: 1.6; }
+        .red-line .icon { color: #ef4444; font-weight: bold; flex-shrink: 0; }
+        
+        textarea { width: 100%; min-height: 120px; background: #0d1117; border: 1px solid #1e2a3a; border-radius: 8px; color: #e0e6ed; padding: 14px; font-size: 14px; font-family: inherit; resize: vertical; line-height: 1.6; }
+        textarea:focus { outline: none; border-color: #3b82f6; }
+        textarea::placeholder { color: #4b5563; }
+        
+        .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+        .btn-primary:hover { background: linear-gradient(135deg, #60a5fa, #3b82f6); transform: translateY(-1px); }
+        .btn-secondary { background: #1e2a3a; color: #9ca3af; }
+        .btn-secondary:hover { background: #2d3748; color: #e5e7eb; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-sm { padding: 6px 14px; font-size: 12px; }
+        
+        .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+        .input-group { display: flex; flex-direction: column; gap: 4px; }
+        .input-group label { font-size: 12px; color: #6b7280; }
+        .input-group input, .input-group select { background: #0d1117; border: 1px solid #1e2a3a; border-radius: 6px; color: #e0e6ed; padding: 8px 12px; font-size: 13px; }
+        .input-group input:focus, .input-group select:focus { outline: none; border-color: #3b82f6; }
+        
+        .config-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid #1e2a3a; }
+        .config-section h3 { font-size: 13px; color: #6b7280; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+        .config-row { display: grid; gap: 8px; }
+        .config-row input { width: 100%; background: #0d1117; border: 1px solid #1e2a3a; border-radius: 6px; color: #e0e6ed; padding: 8px 12px; font-size: 12px; }
+        .config-row input:focus { outline: none; border-color: #3b82f6; }
+        .config-row input::placeholder { color: #374151; }
+        .config-hint { font-size: 11px; color: #4b5563; margin-top: 4px; }
+        .config-status { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; }
+        .config-status .dot { width: 6px; height: 6px; border-radius: 50%; }
+        .config-status .dot.on { background: #10b981; }
+        .config-status .dot.off { background: #f59e0b; }
+        
+        .risk-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+        .risk-low { background: #064e3b; color: #34d399; }
+        .risk-medium { background: #78350f; color: #fbbf24; }
+        .risk-high { background: #7f1d1d; color: #f87171; }
+        .risk-emergency { background: #581c87; color: #c084fc; }
+        
+        .result-section { margin-bottom: 24px; }
+        .result-section h3 { font-size: 14px; font-weight: 600; color: #9ca3af; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .result-card { background: #0d1117; border: 1px solid #1e2a3a; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+        .result-card h4 { font-size: 14px; color: #e5e7eb; margin-bottom: 8px; }
+        .result-card p { font-size: 13px; color: #9ca3af; line-height: 1.7; }
+        .result-card .metric { display: inline-flex; align-items: center; gap: 6px; background: #111827; padding: 4px 10px; border-radius: 4px; margin: 4px 4px 4px 0; font-size: 12px; }
+        .result-card .metric .label { color: #6b7280; }
+        .result-card .metric .value { color: #e5e7eb; font-weight: 600; }
+        
+        .scheme-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+        .scheme-tab { padding: 8px 16px; border: 1px solid #1e2a3a; border-radius: 6px; background: transparent; color: #9ca3af; font-size: 13px; cursor: pointer; }
+        .scheme-tab.active { background: #1e3a5f; color: #60a5fa; border-color: #3b82f6; }
+        
+        .check-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 6px; margin-bottom: 6px; }
+        .check-pass { background: #064e3b22; border: 1px solid #064e3b; }
+        .check-fail { background: #7f1d1d22; border: 1px solid #7f1d1d; }
+        .check-warn { background: #78350f22; border: 1px solid #78350f; }
+        .check-icon { font-size: 16px; flex-shrink: 0; }
+        .check-pass .check-icon { color: #34d399; }
+        .check-fail .check-icon { color: #f87171; }
+        .check-warn .check-icon { color: #fbbf24; }
+        
+        .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; gap: 16px; }
+        .spinner { width: 40px; height: 40px; border: 3px solid #1e2a3a; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { font-size: 14px; color: #6b7280; }
+        .loading-sub { font-size: 12px; color: #374151; }
+        
+        .pipeline-steps { display: flex; gap: 4px; margin-bottom: 20px; }
+        .pipeline-step { flex: 1; text-align: center; padding: 8px; font-size: 11px; color: #4b5563; position: relative; }
+        .pipeline-step.active { color: #60a5fa; }
+        .pipeline-step.done { color: #34d399; }
+        .pipeline-step::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: #1e2a3a; }
+        .pipeline-step.active::after { background: #3b82f6; }
+        .pipeline-step.done::after { background: #10b981; }
+        
+        .disclaimer { background: #7f1d1d22; border: 1px solid #7f1d1d; border-radius: 8px; padding: 12px 16px; font-size: 12px; color: #fca5a5; line-height: 1.6; margin-top: 16px; }
+        
+        .empty-state { text-align: center; padding: 80px 40px; }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-state h3 { font-size: 16px; color: #6b7280; margin-bottom: 8px; }
+        .empty-state p { font-size: 13px; color: #4b5563; }
+        
+        .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 1000; animation: slideIn 0.3s; }
+        .toast-error { background: #7f1d1d; color: #fca5a5; border: 1px solid #991b1b; }
+        .toast-success { background: #064e3b; color: #6ee7b7; border: 1px solid #065f46; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        /* Markdown 渲染样式 */
+        .md-content h1, .md-content h2, .md-content h3 { color: #e5e7eb; margin: 16px 0 8px; font-size: 15px; }
+        .md-content h2 { border-bottom: 1px solid #1e2a3a; padding-bottom: 6px; }
+        .md-content h3 { font-size: 14px; }
+        .md-content p { margin: 8px 0; line-height: 1.8; }
+        .md-content ul, .md-content ol { padding-left: 20px; margin: 8px 0; }
+        .md-content li { margin: 4px 0; line-height: 1.7; }
+        .md-content strong { color: #e5e7eb; }
+        .md-content code { background: #1e2a3a; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+        .md-content blockquote { border-left: 3px solid #3b82f6; padding-left: 12px; margin: 8px 0; color: #6b7280; }
+        .md-content hr { border: none; border-top: 1px solid #1e2a3a; margin: 16px 0; }
+        
+        .ai-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #064e3b44; color: #34d399; border: 1px solid #064e3b; }
+        .template-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #78350f44; color: #fbbf24; border: 1px solid #78350f; }
+        
+        @media (max-width: 900px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .container { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div style="display:flex;align-items:baseline;">
+            <h1>灵境</h1>
+            <span class="version">V3.5.1</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:24px;">
+            <span style="font-size:12px;color:#4b5563;">人机协同自适应理性决策辅助系统</span>
+            <div class="status" id="systemStatus">系统就绪</div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="pipeline-steps" id="pipelineSteps">
+            <div class="pipeline-step" id="step1">需求输入</div>
+            <div class="pipeline-step" id="step2">风险分级</div>
+            <div class="pipeline-step" id="step3">方案生成</div>
+            <div class="pipeline-step" id="step4">平行校验</div>
+            <div class="pipeline-step" id="step5">元监监查</div>
+            <div class="pipeline-step" id="step6">全景输出</div>
+        </div>
+        
+        <div class="main-grid">
+            <!-- 左侧输入面板 -->
+            <div>
+                <div class="panel" style="margin-bottom:16px;">
+                    <div class="panel-header">
+                        <h2>核心红线</h2>
+                        <span class="badge">6条不可突破</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="red-lines">
+                            <div class="red-line"><span class="icon">1</span> 人类拥有100%最终决策权，AI禁止替用户做最终决策</div>
+                            <div class="red-line"><span class="icon">2</span> 方案生成与校验必须完全隔离，禁止自审自查</div>
+                            <div class="red-line"><span class="icon">3</span> 必须完整披露所有正向/反向信息，风险占比≥30%</div>
+                            <div class="red-line"><span class="icon">4</span> 所有核心数据必须标注权威来源，禁止无来源假设</div>
+                            <div class="red-line"><span class="icon">5</span> 无资质禁止提供医疗/法律/金融确定性执业建议</div>
+                            <div class="red-line"><span class="icon">6</span> 必须严格遵循风险分级流程，禁止擅自降级</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>决策需求输入</h2>
+                        <span class="badge" id="aiBadgeHeader">检测中...</span>
+                    </div>
+                    <div class="panel-body">
+                        <textarea id="decisionInput" placeholder="请输入您的决策需求，越详细越好：&#10;&#10;建议包含：&#10;• 决策目标（您想做什么决定）&#10;• 预算/金额（涉及资金时）&#10;• 时间周期（计划多长时间）&#10;• 风险承受能力（保守/稳健/激进）&#10;• 约束条件（有什么限制）&#10;&#10;示例：我有20万元闲置资金，计划投资股票，期限1年，风险承受能力中等，希望年化收益率在8%-12%之间"></textarea>
+                        
+                        <div class="input-row">
+                            <div class="input-group">
+                                <label>用户ID</label>
+                                <input type="text" id="userId" value="user_demo" placeholder="用户ID">
+                            </div>
+                            <div class="input-group">
+                                <label>所属行业</label>
+                                <select id="industry">
+                                    <option value="默认">自动识别</option>
+                                    <option value="金融投资">金融投资</option>
+                                    <option value="法律合规">法律合规</option>
+                                    <option value="医疗健康">医疗健康</option>
+                                    <option value="房地产">房地产</option>
+                                    <option value="企业战略">企业战略</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="btn-row">
+                            <button class="btn btn-primary" id="submitBtn" onclick="submitDecision()">启动灵境系统</button>
+                            <button class="btn btn-secondary" onclick="clearAll()">清空</button>
+                        </div>
+                        
+                        <!-- AI 配置区域 -->
+                        <div class="config-section">
+                            <h3>🤖 AI 大模型配置 <span class="config-status" id="aiConfigStatus"></span></h3>
+                            <div class="config-row">
+                                <input type="password" id="apiKeyInput" placeholder="API Key（如 OpenAI / DeepSeek / 智谱等）">
+                                <input type="text" id="apiBaseInput" placeholder="API Base URL（如 https://api.deepseek.com/v1）">
+                                <input type="text" id="modelInput" placeholder="模型名称（如 deepseek-chat / glm-4-flash / gpt-4o）">
+                            </div>
+                            <div class="btn-row" style="margin-top:8px;">
+                                <button class="btn btn-secondary btn-sm" onclick="saveAIConfig()">保存配置</button>
+                                <button class="btn btn-secondary btn-sm" onclick="clearAIConfig()">清除配置</button>
+                            </div>
+                            <p class="config-hint">配置仅在本次会话有效。支持任何 OpenAI 兼容接口（DeepSeek、智谱、通义、Moonshot 等）。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧结果面板 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>决策辅助结果</h2>
+                    <span class="badge" id="resultBadge">等待输入</span>
+                </div>
+                <div class="panel-body" id="resultArea">
+                    <div class="empty-state">
+                        <div class="icon">🎯</div>
+                        <h3>等待您的决策需求</h3>
+                        <p>在左侧输入决策需求后，系统将执行完整的理性决策辅助流程</p>
+                        <p style="margin-top:12px;color:#374151;font-size:12px;">提示：配置 AI API Key 后可启用大模型深度分析</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    const API_BASE = '/api/v1';
+    let aiAvailable = false;
+    
+    // 检查 AI 状态
+    async function checkAIStatus() {
+        try {
+            const res = await fetch(`${API_BASE}/decision/ai-status`);
+            const data = await res.json();
+            aiAvailable = data.data && data.data.available;
+            updateAIStatusUI(aiAvailable);
+        } catch {
+            updateAIStatusUI(false);
+        }
+    }
+    
+    function updateAIStatusUI(available) {
+        const badge = document.getElementById('aiBadgeHeader');
+        const status = document.getElementById('systemStatus');
+        const configStatus = document.getElementById('aiConfigStatus');
+        
+        if (available) {
+            badge.textContent = 'AI 已接入';
+            badge.className = 'badge badge-ai';
+            status.textContent = '系统就绪 · AI在线';
+            status.className = 'status';
+            if (configStatus) configStatus.innerHTML = '<span class="dot on"></span> AI 已连接';
+        } else {
+            badge.textContent = '模板模式';
+            badge.className = 'badge badge-off';
+            status.textContent = '系统就绪 · 模板模式';
+            status.className = 'status ai-off';
+            if (configStatus) configStatus.innerHTML = '<span class="dot off"></span> AI 未配置';
+        }
+    }
+    
+    // 保存 AI 配置（通过临时环境变量方式，仅当次请求生效）
+    async function saveAIConfig() {
+        const apiKey = document.getElementById('apiKeyInput').value.trim();
+        const apiBase = document.getElementById('apiBaseInput').value.trim();
+        const model = document.getElementById('modelInput').value.trim();
+        
+        if (!apiKey) {
+            showToast('请输入 API Key');
+            return;
+        }
+        
+        try {
+            const res = await fetch(`${API_BASE}/decision/ai-status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: apiKey, api_base: apiBase, model: model })
+            });
+            const data = await res.json();
+            if (data.code === 2000) {
+                showToast('AI 配置已保存并生效', 'success');
+                aiAvailable = data.data.available;
+                updateAIStatusUI(aiAvailable);
+            } else {
+                showToast(data.message || '配置失败');
+            }
+        } catch (e) {
+            showToast('配置请求失败: ' + e.message);
+        }
+    }
+    
+    function clearAIConfig() {
+        document.getElementById('apiKeyInput').value = '';
+        document.getElementById('apiBaseInput').value = '';
+        document.getElementById('modelInput').value = '';
+        showToast('配置已清除（重启服务后生效）');
+    }
+    
+    function setStep(n) {
+        for (let i = 1; i <= 6; i++) {
+            const el = document.getElementById('step' + i);
+            el.className = 'pipeline-step' + (i < n ? ' done' : i === n ? ' active' : '');
+        }
+    }
+    
+    function showToast(msg, type='error') {
+        const el = document.createElement('div');
+        el.className = 'toast toast-' + type;
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 3000);
+    }
+    
+    function setLoading(show, stepText) {
+        document.getElementById('submitBtn').disabled = show;
+        if (show) {
+            const aiHint = aiAvailable ? '' : '<br><span style="color:#f59e0b;">当前为模板模式，AI 深度分析不可用</span>';
+            document.getElementById('resultArea').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div class="loading-text">${stepText || '灵境系统正在执行决策辅助流程...'}</div>
+                    <div class="loading-sub">AI ${aiAvailable ? '正在深度分析中，请稍候...' : '未配置，使用规则引擎'}${aiHint}</div>
+                </div>`;
+        }
+    }
+    
+    // 简单的 Markdown 渲染
+    function renderMarkdown(text) {
+        if (!text) return '';
+        let html = text
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+            .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+            .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.+?)\*/g, '<em>$1</em>')
+            .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+            .replace(/^---$/gm, '<hr>')
+            .replace(/^- (.+)$/gm, '<li>$1</li>')
+            .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>');
+        // 包裹列表
+        html = html.replace(/(<li>.*?<\/li>(\s*<br>)?)+/g, '<ul>$&</ul>');
+        return '<p>' + html + '</p>';
+    }
+    
+    async function submitDecision() {
+        const input = document.getElementById('decisionInput').value.trim();
+        const userId = document.getElementById('userId').value.trim();
+        
+        if (!input) {
+            showToast('请输入决策需求');
+            return;
+        }
+        
+        setLoading(true, '正在进行需求解析与风险分级...');
+        setStep(1);
+        
+        try {
+            const res = await fetch(`${API_BASE}/decision/full-pipeline`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ decision_goal: input, user_id: userId })
+            });
+            const result = await res.json();
+            
+            if (result.code === 4003) {
+                showToast(result.message, 'error');
+                setLoading(false);
+                return;
+            }
+            
+            if (result.code !== 2000) {
+                showToast(result.message || '请求失败', 'error');
+                setLoading(false);
+                return;
+            }
+            
+            renderResult(result.data);
+            setStep(6);
+            showToast('决策辅助流程完成', 'success');
+            
+        } catch (e) {
+            showToast('网络错误，请检查系统是否启动: ' + e.message);
+        } finally {
+            setLoading(false);
+        }
+    }
+    
+    function renderResult(data) {
+        const area = document.getElementById('resultArea');
+        const grade = data.risk_grading;
+        const gradeClass = { low: 'risk-low', medium: 'risk-medium', high: 'risk-high' }[grade.risk_grade] || 'risk-low';
+        const gradeLabel = { low: '低风险', medium: '中风险', high: '高风险' }[grade.risk_grade] || grade.risk_grade;
+        const isAI = data.ai_available;
+        
+        document.getElementById('resultBadge').innerHTML = `<span class="risk-badge ${gradeClass}">${gradeLabel}</span>`;
+        
+        let html = '';
+        
+        // 需求解析详情（如果有 AI 分析）
+        if (data.requirement && data.requirement.additional_info && data.requirement.additional_info.ai_analysis) {
+            const info = data.requirement.additional_info;
+            html += `
+            <div class="result-section">
+                <h3>🔍 AI 需求深度解析 <span class="ai-badge">AI</span></h3>
+                <div class="result-card">
+                    ${info.ai_summary ? `<p>${info.ai_summary}</p>` : ''}
+                    ${info.emotion_tone ? `<div class="metric"><span class="label">情绪基调</span><span class="value">${info.emotion_tone}</span></div>` : ''}
+                    ${info.information_completeness ? `<div class="metric"><span class="label">信息完整度</span><span class="value">${info.information_completeness}</span></div>` : ''}
+                    ${info.missing_info && info.missing_info.length ? `<p style="margin-top:8px;color:#fbbf24;"><strong>缺失信息：</strong>${info.missing_info.join('、')}</p>` : ''}
+                    ${info.core_dilemma ? `<p style="color:#c084fc;margin-top:4px;"><strong>核心矛盾：</strong>${info.core_dilemma}</p>` : ''}
+                </div>
+            </div>`;
+        }
+        
+        // 风险分级
+        html += `
+        <div class="result-section">
+            <h3>📊 风险分级</h3>
+            <div class="result-card">
+                <h4><span class="risk-badge ${gradeClass}">${gradeLabel}</span> · ${grade.execution_process}</h4>
+                <div style="margin:10px 0;">
+                    <div class="metric"><span class="label">综合评分</span><span class="value">${grade.risk_score}/10</span></div>
+                    <div class="metric"><span class="label">不可逆程度</span><span class="value">${grade.irreversibility_score}/10</span></div>
+                    <div class="metric"><span class="label">合规要求</span><span class="value">${grade.compliance_score}/10</span></div>
+                    <div class="metric"><span class="label">复杂度</span><span class="value">${grade.complexity_score}/10</span></div>
+                    <div class="metric"><span class="label">预计耗时</span><span class="value">${grade.estimated_time}</span></div>
+                    ${isAI ? '<div class="metric"><span class="label">分析引擎</span><span class="value" style="color:#34d399;">AI 深度分析</span></div>' : '<div class="metric"><span class="label">分析引擎</span><span class="value" style="color:#fbbf24;">规则模板</span></div>'}
+                </div>
+                <p style="white-space:pre-line;color:#6b7280;font-size:12px;margin-top:8px;">${grade.grading_basis}</p>
+            </div>
+        </div>`;
+        
+        // AI 整合报告（如果有）
+        if (data.ai_integrated_report) {
+            html += `
+            <div class="result-section">
+                <h3>🤖 AI 整合决策辅助报告 <span class="ai-badge">AI 生成</span></h3>
+                <div class="result-card md-content">
+                    ${renderMarkdown(data.ai_integrated_report)}
+                </div>
+            </div>`;
+        }
+        
+        // 方案对比
+        if (data.schemes && data.schemes.length > 1) {
+            html += `<div class="result-section"><h3>📋 决策方案对比 ${isAI ? '<span class="ai-badge">AI 生成</span>' : '<span class="template-badge">模板兜底</span>'}</h3>`;
+            html += `<div class="scheme-tabs">`;
+            const schemeLabels = { optimistic: '乐观方案', neutral: '中性方案', pessimistic: '悲观方案', conservative: '保守方案', balanced: '稳健方案', aggressive: '进取方案' };
+            data.schemes.forEach((s, i) => {
+                html += `<button class="scheme-tab ${i===0?'active':''}" onclick="switchScheme(${i})">${schemeLabels[s.scheme_type] || s.scheme_type}</button>`;
+            });
+            html += `</div>`;
+            data.schemes.forEach((s, i) => {
+                // 如果有 raw_content 且是 AI 生成的，显示完整内容
+                const hasRichContent = s.raw_content && s.raw_content.length > 200 && isAI;
+                html += `<div class="result-card scheme-content" id="scheme-${i}" style="${i>0?'display:none':''}">
+                    <h4>${schemeLabels[s.scheme_type] || s.scheme_type}</h4>
+                    ${hasRichContent ? `<div class="md-content">${renderMarkdown(s.raw_content)}</div>` : `
+                    <p><strong>核心逻辑：</strong>${s.core_logic}</p>
+                    <p><strong>收益预期：</strong>${s.expected_return}</p>
+                    <p><strong>风险敞口：</strong>${s.risk_exposure}</p>
+                    <p><strong>适用场景：</strong>${s.applicable_scenarios}</p>
+                    <p><strong>触发条件：</strong>${s.trigger_conditions}</p>
+                    <p style="color:#f87171;"><strong>核心风险：</strong></p>
+                    <ul style="padding-left:20px;color:#fca5a5;">
+                        ${(s.key_risks||[]).map(r=>`<li>${r}</li>`).join('')}
+                    </ul>
+                    <p><strong>置信度：</strong>${s.confidence}</p>
+                    <p><strong>数据来源：</strong>${(s.data_sources||[]).join('、')}</p>
+                    `}
+                </div>`;
+            });
+            html += `</div>`;
+        } else if (data.schemes && data.schemes.length === 1) {
+            const s = data.schemes[0];
+            const hasRichContent = s.raw_content && s.raw_content.length > 200 && isAI;
+            html += `<div class="result-section"><h3>📋 决策方案 ${isAI ? '<span class="ai-badge">AI 生成</span>' : '<span class="template-badge">模板兜底</span>'}</h3>`;
+            if (hasRichContent) {
+                html += `<div class="result-card md-content">${renderMarkdown(s.raw_content)}</div>`;
+            } else {
+                html += `<div class="result-card"><pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;color:#9ca3af;line-height:1.8;">${s.raw_content || s.core_logic}</pre></div>`;
+            }
+            html += `</div>`;
+        }
+        
+        // 平行校验
+        if (data.check_result) {
+            const cr = data.check_result;
+            html += `<div class="result-section"><h3>✅ 平行校验结果 ${isAI ? '<span class="ai-badge">规则+AI</span>' : '<span class="template-badge">规则引擎</span>'}</h3>`;
+            html += `<div class="result-card"><p><strong>整体结果：</strong>${cr.overall_result || cr.resolution}</p></div>`;
+            
+            if (cr.checks) {
+                const checkerNames = { checker_1: '前提依据校验官', checker_2: '逻辑推导校验官', checker_3: '框架与风险校验官', basic_compliance: '基础合规校验' };
+                for (const [id, check] of Object.entries(cr.checks)) {
+                    const cls = check.result === 'pass' ? 'check-pass' : check.red_flags && check.red_flags.length ? 'check-fail' : 'check-warn';
+                    const icon = check.result === 'pass' ? '✅' : check.red_flags && check.red_flags.length ? '❌' : '⚠️';
+                    html += `<div class="check-item ${cls}"><span class="check-icon">${icon}</span><div>
+                        <strong>${checkerNames[id] || id}</strong>
+                        <span style="color:#6b7280;font-size:12px;margin-left:8px;">${check.result}</span>
+                        ${(check.red_flags||[]).map(r => `<div style="color:#fca5a5;font-size:12px;margin-top:4px;">🔴 ${r}</div>`).join('')}
+                        ${(check.issues||[]).map(i => `<div style="color:#fbbf24;font-size:12px;margin-top:4px;">⚠️ ${i.item || i.description || JSON.stringify(i)}</div>`).join('')}
+                        ${(check.suggestions||[]).filter(s => s && s.startsWith('[AI')).map(s => `<div style="color:#60a5fa;font-size:11px;margin-top:4px;">🤖 ${s}</div>`).join('')}
+                    </div></div>`;
+                }
+            }
+            html += `</div>`;
+        }
+        
+        // 元监结果
+        if (data.monitor_report) {
+            const mr = data.monitor_report;
+            html += `<div class="result-section"><h3>🛡️ 元监合规监查</h3>
+                <div class="result-card">
+                    <p><strong>整体结果：</strong>${mr.overall_result === 'pass' ? '✅ 通过' : mr.overall_result === 'intercept' ? '❌ 拦截' : '⚠️ 有待关注'}</p>
+                    ${mr.interventions && mr.interventions.length ? mr.interventions.map(i => `<p style="color:#fca5a5;font-size:12px;margin-top:4px;">⛔ ${i.type}: ${i.reason}</p>`).join('') : ''}
+                </div>
+            </div>`;
+        }
+        
+        // 台账信息
+        if (data.ledger) {
+            html += `<div class="result-section"><h3>📄 决策台账</h3>
+                <div class="result-card">
+                    <div class="metric"><span class="label">台账ID</span><span class="value">${data.ledger.ledger_id}</span></div>
+                    <div class="metric"><span class="label">内容哈希</span><span class="value" style="font-size:10px;">${data.ledger.content_hash}</span></div>
+                </div>
+            </div>`;
+        }
+        
+        // 合规免责声明
+        html += `<div class="disclaimer">
+            ⚠️ <strong>合规免责声明</strong><br>
+            AI不构成任何投资/法律/医疗建议，最终决策与全部责任由您自行承担。
+            人类永远拥有最终决策权，AI仅提供无偏决策辅助信息。
+            请完整阅读所有风险提示后独立做出决策。
+        </div>`;
+        
+        area.innerHTML = html;
+    }
+    
+    function switchScheme(idx) {
+        document.querySelectorAll('.scheme-content').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.scheme-tab').forEach(el => el.classList.remove('active'));
+        document.getElementById('scheme-' + idx).style.display = '';
+        document.querySelectorAll('.scheme-tab')[idx].classList.add('active');
+    }
+    
+    function clearAll() {
+        document.getElementById('decisionInput').value = '';
+        document.getElementById('resultArea').innerHTML = `
+            <div class="empty-state">
+                <div class="icon">🎯</div>
+                <h3>等待您的决策需求</h3>
+                <p>在左侧输入决策需求后，系统将执行完整的理性决策辅助流程</p>
+            </div>`;
+        document.getElementById('resultBadge').textContent = '等待输入';
+        for (let i = 1; i <= 6; i++) {
+            document.getElementById('step' + i).className = 'pipeline-step';
+        }
+    }
+    
+    // 回车提交
+    document.getElementById('decisionInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && e.ctrlKey) submitDecision();
+    });
+    
+    // 初始化
+    checkAIStatus();
+    </script>
+</body>
+</html>
