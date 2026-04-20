@@ -1,0 +1,15 @@
+.git
+.gitignore
+*.pyc
+__pycache__
+*.pyo
+data/
+.venv
+venv
+env
+.env
+templates/
+README.md
+render.yaml
+Procfile
+runtime.txt
